@@ -16,6 +16,14 @@
 #include "http_log.h"
 #include "scoreboard.h"
 
+#if (AP_SERVER_MINORVERSION_NUMBER > 2)
+#define __APACHE24__
+#endif
+
+#ifdef __APACHE24__
+#define ap_get_scoreboard_worker ap_get_scoreboard_worker_from_indexes
+#endif
+
 int server_limit;
 int thread_limit;
 int reserve_slots;
@@ -86,6 +94,13 @@ static int vhost_reserve_handler(conn_rec *c)
   process_score *ps_record;
 
   vhost_limit_conf *conf;
+
+#ifdef __APACHE24__
+#define ap_my_generation mpm_generation
+  ap_generation_t mpm_generation;
+  ap_mpm_query(AP_MPMQ_GENERATION, &mpm_generation);
+#endif
+
   conf = (vhost_limit_conf *)ap_get_module_config(c->base_server->module_config, &vhost_reserve_module);
 
   if (conf->mode == VHOST_LIMIT_DISABLE) {
@@ -118,7 +133,7 @@ static int vhost_reserve_handler(conn_rec *c)
   }
 
   if ((busy + reserve_slots) >= (server_limit * thread_limit)) {
-    ap_log_error(APLOG_MARK, APLOG_WARNING, 0, NULL, "[client %s] Reached vhost limit", c->remote_ip);
+    ap_log_error(APLOG_MARK, APLOG_WARNING, 0, NULL, "Reached vhost limit");
     return HTTP_SERVICE_UNAVAILABLE;
   }
 
